@@ -1,14 +1,46 @@
 import tkinter as tk
 from tkinter import messagebox
 
-inventario = []
+# ------------------ ESTRUCTURAS ------------------
+
+class Nodo:
+    def __init__(self, dato):
+        self.dato = dato
+        self.siguiente = None
+        self.anterior = None
+
+
+class ListaDoble:
+    def __init__(self):
+        self.inicio = None
+
+    def agregar(self, dato):
+        nuevo = Nodo(dato)
+        if self.inicio is None:
+            self.inicio = nuevo
+        else:
+            temp = self.inicio
+            while temp.siguiente:
+                temp = temp.siguiente
+            temp.siguiente = nuevo
+            nuevo.anterior = temp
+
+    def recorrer(self):
+        lista = []
+        temp = self.inicio
+        while temp:
+            lista.append(temp.dato)
+            temp = temp.siguiente
+        return lista
+
+
+inventario = ListaDoble()
+pila_ventas = []
 
 # ------------------ COLORES ------------------
 COLOR_FONDO = "#1e1e2f"
 COLOR_TEXTO = "#ffffff"
 COLOR_INPUT = "#2a2a40"
-COLOR_BOTON = "#4CAF50"
-COLOR_BOTON2 = "#2196F3"
 
 # ------------------ FUNCIONES ------------------
 
@@ -29,7 +61,7 @@ def agregar_celular():
             "cantidad": int(entry_cantidad.get())
         }
 
-        inventario.append(cel)
+        inventario.agregar(cel)
         messagebox.showinfo("Éxito", "Celular agregado")
         limpiar_campos()
 
@@ -44,78 +76,112 @@ def limpiar_campos():
         entry.delete(0, tk.END)
 
 
+
 def mostrar_inventario():
     texto.delete("1.0", tk.END)
-    for cel in inventario:
+    temp = inventario.inicio
+
+    while temp:
+        cel = temp.dato
         texto.insert(tk.END,
             f"{cel['nombre']} - {cel['marca']} | "
-            f"Proc: {cel['procesador']} | RAM: {cel['memoria']}GB | "
-            f"Cam: {cel['camara']}MP | Alm: {cel['almacenamiento']}GB | "
-            f"Precio: {cel['precio']} | Cantidad: {cel['cantidad']}\n"
+            f"Precio: {cel['precio']} | RAM: {cel['memoria']}GB | "
+            f"Cámara: {cel['camara']}MP | Procesador: {cel['procesador']} | "
+            f"Almacenamiento: {cel['almacenamiento']}GB | "
+            f"Cantidad: {cel['cantidad']}\n"
         )
+        temp = temp.siguiente
 
 
 def vender_celular():
     nombre = entry_buscar.get()
+    temp = inventario.inicio
 
-    for i, cel in enumerate(inventario):
+    while temp:
+        cel = temp.dato
         if cel["nombre"].lower() == nombre.lower():
-            inventario[i]["cantidad"] -= 1
+            cel["cantidad"] -= 1
 
-            if inventario[i]["cantidad"] <= 0:
-                inventario.pop(i)
+            # Pila (LIFO)
+            pila_ventas.append(cel.copy())
+
+            if cel["cantidad"] <= 0:
+                if temp.anterior:
+                    temp.anterior.siguiente = temp.siguiente
+                if temp.siguiente:
+                    temp.siguiente.anterior = temp.anterior
+                if temp == inventario.inicio:
+                    inventario.inicio = temp.siguiente
 
             messagebox.showinfo("Venta", "Venta realizada")
             mostrar_inventario()
             return
 
+        temp = temp.siguiente
+
     messagebox.showerror("Error", "Celular no encontrado")
 
 
-# 🔥 RECOMENDACIÓN (UNA SOLA OPCIÓN)
+def mostrar_pila():
+    texto.delete("1.0", tk.END)
+
+    if not pila_ventas:
+        texto.insert(tk.END, "No hay ventas\n")
+        return
+
+    texto.insert(tk.END, "Historial (último vendido primero):\n\n")
+
+    for cel in reversed(pila_ventas):
+        texto.insert(tk.END,
+            f"{cel['nombre']} - {cel['marca']} | Precio: {cel['precio']}\n"
+        )
+
+
+#  RECOMENDACIÓN
 def recomendar():
     texto.delete("1.0", tk.END)
 
-    if not inventario:
-        texto.insert(tk.END, "No hay celulares registrados\n")
+    lista = inventario.recorrer()
+
+    if not lista:
+        texto.insert(tk.END, "No hay celulares\n")
         return
 
-    lista = inventario.copy()
     seleccion = opcion.get()
 
     if seleccion == "precio":
-        lista.sort(key=lambda x: x["precio"])
-        for i, cel in enumerate(lista[:3], start=1):
+        lista.sort(key=lambda x: x["precio"], reverse=True)
+        for cel in lista:
             texto.insert(tk.END,
-                f"{i}. {cel['nombre']} ({cel['marca']}) | Precio: {cel['precio']}\n"
+                f"{cel['nombre']} - Precio: {cel['precio']}\n"
             )
 
     elif seleccion == "camara":
         lista.sort(key=lambda x: x["camara"], reverse=True)
-        for i, cel in enumerate(lista[:3], start=1):
+        for cel in lista:
             texto.insert(tk.END,
-                f"{i}. {cel['nombre']} ({cel['marca']}) | Cámara: {cel['camara']}MP\n"
+                f"{cel['nombre']} - Cámara: {cel['camara']}MP\n"
             )
 
     elif seleccion == "procesador":
         lista.sort(key=lambda x: x["procesador"], reverse=True)
-        for i, cel in enumerate(lista[:3], start=1):
+        for cel in lista:
             texto.insert(tk.END,
-                f"{i}. {cel['nombre']} ({cel['marca']}) | Procesador: {cel['procesador']}\n"
+                f"{cel['nombre']} - Procesador: {cel['procesador']}\n"
             )
 
     elif seleccion == "ram":
         lista.sort(key=lambda x: x["memoria"], reverse=True)
-        for i, cel in enumerate(lista[:3], start=1):
+        for cel in lista:
             texto.insert(tk.END,
-                f"{i}. {cel['nombre']} ({cel['marca']}) | RAM: {cel['memoria']}GB\n"
+                f"{cel['nombre']} - RAM: {cel['memoria']}GB\n"
             )
 
     elif seleccion == "almacenamiento":
         lista.sort(key=lambda x: x["almacenamiento"], reverse=True)
-        for i, cel in enumerate(lista[:3], start=1):
+        for cel in lista:
             texto.insert(tk.END,
-                f"{i}. {cel['nombre']} ({cel['marca']}) | Almacenamiento: {cel['almacenamiento']}GB\n"
+                f"{cel['nombre']} - Almacenamiento: {cel['almacenamiento']}GB\n"
             )
 
     else:
@@ -129,80 +195,70 @@ ventana.title("Sistema de Celulares")
 ventana.geometry("900x600")
 ventana.configure(bg=COLOR_FONDO)
 
-# -------- CONTENEDORES --------
 frame_izq = tk.Frame(ventana, bg=COLOR_FONDO)
 frame_izq.pack(side="left", fill="y", padx=10, pady=10)
 
 frame_der = tk.Frame(ventana, bg=COLOR_FONDO)
 frame_der.pack(side="right", fill="both", expand=True, padx=10, pady=10)
 
-# -------- INVENTARIO --------
 tk.Label(frame_izq, text="INVENTARIO",
-         font=("Arial", 14, "bold"),
          bg=COLOR_FONDO, fg=COLOR_TEXTO).pack()
 
 def crear_entry(label):
     tk.Label(frame_izq, text=label,
              bg=COLOR_FONDO, fg=COLOR_TEXTO).pack()
-    e = tk.Entry(frame_izq, bg=COLOR_INPUT, fg="white", insertbackground="white")
-    e.pack(pady=2)
+    e = tk.Entry(frame_izq, bg=COLOR_INPUT, fg="white")
+    e.pack()
     return e
 
 entry_nombre = crear_entry("Nombre")
 entry_marca = crear_entry("Marca")
-entry_procesador = crear_entry("Procesador 1-10")
+entry_procesador = crear_entry("Procesador 1-10 CALIFICACION")
 entry_memoria = crear_entry("RAM")
 entry_camara = crear_entry("Cámara")
 entry_almacenamiento = crear_entry("Almacenamiento")
 entry_precio = crear_entry("Precio")
 entry_cantidad = crear_entry("Cantidad")
 
-tk.Button(frame_izq, text="Agregar", bg=COLOR_BOTON, fg="white",
-          command=agregar_celular).pack(pady=5)
+tk.Button(frame_izq, text="Agregar", command=agregar_celular).pack(pady=5)
+tk.Button(frame_izq, text="Mostrar", command=mostrar_inventario).pack(pady=5)
 
-tk.Button(frame_izq, text="Mostrar", bg=COLOR_BOTON2, fg="white",
-          command=mostrar_inventario).pack(pady=5)
-
-# -------- VENTA --------
 tk.Label(frame_izq, text="VENTA",
-         bg=COLOR_FONDO, fg=COLOR_TEXTO).pack(pady=5)
+         bg=COLOR_FONDO, fg=COLOR_TEXTO).pack()
 
-entry_buscar = tk.Entry(frame_izq, bg=COLOR_INPUT, fg="white", insertbackground="white")
+entry_buscar = tk.Entry(frame_izq)
 entry_buscar.pack()
 
-tk.Button(frame_izq, text="Vender", bg="#ff9800", fg="white",
-          command=vender_celular).pack(pady=5)
+tk.Button(frame_izq, text="Vender", command=vender_celular).pack(pady=5)
 
-# -------- RECOMENDACIÓN --------
+tk.Button(frame_izq, text="Ver Ventas", command=mostrar_pila).pack(pady=5)
+
 tk.Label(frame_izq, text="RECOMENDACIÓN",
-         bg=COLOR_FONDO, fg=COLOR_TEXTO).pack(pady=5)
+         bg=COLOR_FONDO, fg=COLOR_TEXTO).pack()
 
 opcion = tk.StringVar()
 
-tk.Radiobutton(frame_izq, text="Mejor Cámara", value="camara", variable=opcion,
-               bg=COLOR_FONDO, fg=COLOR_TEXTO, selectcolor="#333").pack(anchor="w")
+tk.Radiobutton(frame_izq, text="Precio", value="precio", variable=opcion,
+               bg=COLOR_FONDO, fg=COLOR_TEXTO).pack(anchor="w")
 
-tk.Radiobutton(frame_izq, text="Mejor Procesador", value="procesador", variable=opcion,
-               bg=COLOR_FONDO, fg=COLOR_TEXTO, selectcolor="#333").pack(anchor="w")
+tk.Radiobutton(frame_izq, text="Cámara", value="camara", variable=opcion,
+               bg=COLOR_FONDO, fg=COLOR_TEXTO).pack(anchor="w")
 
-tk.Radiobutton(frame_izq, text="Más RAM", value="ram", variable=opcion,
-               bg=COLOR_FONDO, fg=COLOR_TEXTO, selectcolor="#333").pack(anchor="w")
+tk.Radiobutton(frame_izq, text="Procesador", value="procesador", variable=opcion,
+               bg=COLOR_FONDO, fg=COLOR_TEXTO).pack(anchor="w")
 
-tk.Radiobutton(frame_izq, text="Más Almacenamiento", value="almacenamiento", variable=opcion,
-               bg=COLOR_FONDO, fg=COLOR_TEXTO, selectcolor="#333").pack(anchor="w")
+tk.Radiobutton(frame_izq, text="RAM", value="ram", variable=opcion,
+               bg=COLOR_FONDO, fg=COLOR_TEXTO).pack(anchor="w")
 
-tk.Radiobutton(frame_izq, text="Más Económico", value="precio", variable=opcion,
-               bg=COLOR_FONDO, fg=COLOR_TEXTO, selectcolor="#333").pack(anchor="w")
+tk.Radiobutton(frame_izq, text="Almacenamiento", value="almacenamiento", variable=opcion,
+               bg=COLOR_FONDO, fg=COLOR_TEXTO).pack(anchor="w")
 
-tk.Button(frame_izq, text="Recomendar TOP 3", bg="#9c27b0", fg="white",
-          command=recomendar).pack(pady=10)
+tk.Button(frame_izq, text="Recomendar", command=recomendar).pack(pady=10)
 
-# -------- RESULTADOS --------
 tk.Label(frame_der, text="RESULTADOS",
-         font=("Arial", 14, "bold"),
          bg=COLOR_FONDO, fg=COLOR_TEXTO).pack()
 
-texto = tk.Text(frame_der, bg="#121212", fg="white")
+texto = tk.Text(frame_der)
 texto.pack(fill="both", expand=True)
 
 ventana.mainloop()
